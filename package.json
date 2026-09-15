@@ -1,0 +1,18 @@
+{
+  "name": "kafv-fish-price-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "KAFV 수산물 가격정보 AI MCP adapter over the locked Cloudflare Worker v0.7.2",
+  "scripts": {
+    "dev": "tsx src/server.ts",
+    "test": "node --import tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.0.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.0"
+  }
+}

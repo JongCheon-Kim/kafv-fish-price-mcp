@@ -1,8 +1,9 @@
-import * as z from "zod/v4";
+import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
-import { config } from "../config.js";
+import { KAFV } from "../constants.js";
+import type { WorkerDeps } from "../types.js";
 import { resolveEntity } from "../lib/catalog.js";
-import { daysBefore, monthsBefore, ym, ymd, itemsOf } from "../lib/normalize.js";
+import { daysBefore, monthsBefore, ymd, itemsOf } from "../lib/normalize.js";
 import { businessError, toolResult } from "../lib/result.js";
 import { cond, workerGet } from "../lib/worker-client.js";
 
@@ -20,30 +21,30 @@ function periodDates(period?: string) {
   return null;
 }
 
-export function registerPriceHistory(server: McpServer) {
+export function registerPriceHistory(server: McpServer, deps: WorkerDeps) {
   server.registerTool("get_seafood_price_history", {
     title: "수산물 기간 가격조회",
     description: "수산물의 일별·추세·등락·기간 소매·기간 중도매·연월별 가격을 지정 기간으로 조회한다. 지정한 날짜·품목 조건은 임의 완화하지 않는다.",
-    inputSchema: z.object({
+    inputSchema: {
       item_name: z.string().min(1), item_code: z.string().optional(),
       price_type: z.enum(["daily", "trend", "change", "retail", "wholesale", "yearmonth"]),
       start_date: z.string().regex(/^\d{4}-?\d{2}-?\d{2}$/).optional(),
       end_date: z.string().regex(/^\d{4}-?\d{2}-?\d{2}$/).optional(),
       period: z.enum(["7d", "30d", "3m", "1y"]).optional(),
       region_code: z.string().optional(), market_code: z.string().optional(), grade_code: z.string().optional(), variety_code: z.string().optional()
-    }),
+    },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true }
   }, async (args) => {
     try {
       let code = args.item_code || "";
       if (!code) {
-        const resolved = await resolveEntity("item", args.item_name);
+        const resolved = await resolveEntity(deps, "item", args.item_name);
         if (resolved.status !== "resolved") return toolResult({ status: resolved.status, request: args, catalog: resolved });
         code = resolved.resolved.code;
       }
       const endpoint = endpointByType[args.price_type];
       const base: Record<string, string | undefined> = {
-        "ctgry_cd::EQ": config.categoryCode, "item_cd::EQ": code,
+        "ctgry_cd::EQ": KAFV.categoryCode, "item_cd::EQ": code,
         "sgg_cd::EQ": args.region_code, "mrkt_cd::EQ": args.market_code,
         "grd_cd::EQ": args.grade_code, "vrty_cd::EQ": args.variety_code
       };
@@ -59,12 +60,12 @@ export function registerPriceHistory(server: McpServer) {
         if (start) base["exmn_ymd::GTE"] = start;
         if (end) base["exmn_ymd::LTE"] = end;
       }
-      const raw = await workerGet(endpoint, { ...cond(base), pageNo: 1, numOfRows: 1000, returnType: "json" });
+      const raw = await workerGet(deps, endpoint, { ...cond(base), pageNo: 1, numOfRows: 1000, returnType: "json" });
       const rows = itemsOf(raw);
       return toolResult({
         status: rows.length ? "available" : "empty",
         request: { ...args, resolved_item_code: code },
-        source: { workerVersionExpected: "0.7.2", endpoint },
+        source: { workerVersionExpected: KAFV.expectedPriceWorkerVersion, endpoint },
         result: { rowCount: rows.length, rows, raw }
       });
     } catch (error: any) {

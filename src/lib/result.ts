@@ -1,4 +1,4 @@
-import { config } from "../config.js";
+import { KAFV } from "../constants.js";
 
 export function toolResult(data: any) {
   return {
@@ -11,6 +11,6 @@ export function businessError(code: string, message: string, detail: any = null)
   return toolResult({
     status: "error",
     error: { code, message, detail },
-    source: { workerVersionExpected: "0.7.2", workerBaseUrl: config.workerBaseUrl }
+    source: { workerVersionExpected: KAFV.expectedPriceWorkerVersion }
   });
 }

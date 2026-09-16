@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "kafv-fish-price-mcp-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-16",
+  "compatibility_flags": ["nodejs_compat"],
+  "services": [
+    {
+      "binding": "PRICE_API",
+      "service": "kafv-fish-price-api"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

@@ -28,5 +28,5 @@
   {"id":27,"query":"앱과 ChatGPT 동일 조건","expectedTool":"regression","rule":"same Worker same core figures"},
   {"id":28,"query":"API secret exposure","expectedTool":"security","rule":"zero secret exposure"},
   {"id":29,"query":"Worker health version","expectedTool":"deployment","rule":"expect 0.7.2"},
-  {"id":30,"query":"Firebase BigQuery Push","expectedTool":"scope","rule":"excluded from v0.1"}
+  {"id":30,"query":"Firebase BigQuery Push","expectedTool":"scope","rule":"excluded from v0.2"}
 ]

@@ -1,4 +1,5 @@
-import { config } from "../config.js";
+import { KAFV } from "../constants.js";
+import type { WorkerDeps } from "../types.js";
 import { firstField, normName } from "./normalize.js";
 import { cond, workerAll } from "./worker-client.js";
 
@@ -28,25 +29,18 @@ function uniq(rows: Candidate[]): Candidate[] {
   return [...m.values()];
 }
 
-async function candidates(entityType: EntityType): Promise<Candidate[]> {
+async function candidates(deps: WorkerDeps, entityType: EntityType): Promise<Candidate[]> {
   if (STATIC[entityType]) return STATIC[entityType]!;
 
   if (entityType === "item" || entityType === "region") {
-    const rows = await workerAll(
-      "/api/recent",
-      cond({ "ctgry_cd::EQ": config.categoryCode }),
-      8,
-      1000
-    );
-    if (entityType === "item") {
-      return uniq(rows.map(r => ({ code: firstField(r, ["item_cd"]), name: firstField(r, ["item_nm"]) })));
-    }
+    const rows = await workerAll(deps, "/api/recent", cond({ "ctgry_cd::EQ": KAFV.categoryCode }), 8, 1000);
+    if (entityType === "item") return uniq(rows.map(r => ({ code: firstField(r, ["item_cd"]), name: firstField(r, ["item_nm"]) })));
     return uniq(rows.map(r => ({ code: firstField(r, ["sgg_cd"]), name: firstField(r, ["sgg_nm"]) })));
   }
 
   const cfg = ENDPOINTS[entityType];
   if (!cfg) return [];
-  const rows = await workerAll(cfg.path, {}, entityType === "market" || entityType === "corporation" ? 30 : 10, 1000);
+  const rows = await workerAll(deps, cfg.path, {}, entityType === "market" || entityType === "corporation" ? 30 : 10, 1000);
   return uniq(rows.map(r => {
     const meta: Record<string, string> = {};
     for (const [k, fields] of cfg.meta || []) {
@@ -57,8 +51,8 @@ async function candidates(entityType: EntityType): Promise<Candidate[]> {
   }));
 }
 
-export async function resolveEntity(entityType: EntityType, query: string) {
-  const rows = await candidates(entityType);
+export async function resolveEntity(deps: WorkerDeps, entityType: EntityType, query: string) {
+  const rows = await candidates(deps, entityType);
   const q = normName(query);
   const exact = rows.filter(x => normName(x.name) === q || normName(x.code) === q);
   if (exact.length === 1) return { status: "resolved" as const, entityType, query, resolved: exact[0], candidates: [] as Candidate[] };
